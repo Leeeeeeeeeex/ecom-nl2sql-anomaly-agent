@@ -1,0 +1,101 @@
+version: "1.0"
+domain: "跨境宠物电商经营分析数仓"
+schema: "ecom_bi"
+
+tables:
+  dim_sku:
+    description: "跨境宠物商品主数据维表"
+    columns:
+      sku_id: "商品唯一编码，如 PET-FOUNTAIN-PRO / PET-FEEDER-CAM / PET-LITTER-AUTO / PET-CLIPPER-LOWNOISE"
+      title: "商品中文标题"
+      category: "商品类目（宠物饮水喂食 / 宠物清洁 / 宠物美容）"
+      unit_price_usd: "标价（美元）"
+      unit_cost_usd: "采购与头程综合成本（美元）"
+      is_active: "是否在售布尔值"
+
+  dim_calendar:
+    description: "业务日历维表（覆盖 2026-07-01 至 2026-09-28，用于缺数检测、周末与大促标记）"
+    columns:
+      biz_date: "业务日期 (DATE, 主键)"
+      is_weekend: "是否周末"
+      promo_event: "促销活动标签（None / PrimeDay / BackToSchool / AutumnSale）"
+
+  fact_orders:
+    description: "跨境订单明细事实表（注意：可能存在异常导入的重复 order_id，统计时需关注去重或数据质量检查）"
+    columns:
+      row_id: "物理自增行主键"
+      order_id: "业务订单号（正常应唯一，若重复代表 ETL 重复导入异常）"
+      biz_date: "下单业务日期 (DATE)"
+      marketplace: "站点（US / DE / UK）"
+      sku_id: "商品编码，关联 dim_sku.sku_id"
+      qty: "购买件数"
+      gross_amount_usd: "订单毛额（美元，含已取消/已退款订单）"
+      discount_usd: "促销折扣金额（美元）"
+      refund_amount_usd: "退款金额（美元，仅 refunded 订单大于0）"
+      order_status: "订单状态枚举：completed（已完成）/ cancelled（已取消）/ refunded（已退款）"
+      cancel_reason: "取消或退款原因（None / pump_noise_defect / shipping_delay / buyer_remorse / out_of_stock）"
+
+  fact_ads_daily:
+    description: "每日广告投放事实表（按日期、站点、SKU 汇总）"
+    columns:
+      biz_date: "投放日期 (DATE)"
+      marketplace: "站点（US / DE / UK）"
+      sku_id: "商品编码，关联 dim_sku.sku_id"
+      impressions: "广告曝光量"
+      clicks: "广告点击量"
+      ad_spend_usd: "广告花费（美元）"
+      ad_sales_usd: "广告归因销售额（美元）"
+
+metrics:
+  gmv:
+    display_name: "GMV（毛成交额）"
+    formula: "SUM(gross_amount_usd)"
+    scope: "包含所有状态订单（completed + cancelled + refunded），统计前建议结合数据质量排查是否存在重复 order_id。"
+    pitfall: "GMV 不等于净营收，不能把 cancelled/refunded 金额计入净营收。"
+
+  net_revenue:
+    display_name: "净营收（Net Revenue）"
+    formula: "SUM(CASE WHEN order_status = 'completed' THEN gross_amount_usd - discount_usd ELSE 0 END)"
+    scope: "仅统计 order_status = 'completed' 的有效已完成订单，扣除 discount_usd；剔除 cancelled 与 refunded 订单。"
+    pitfall: "严禁直接 SUM(gross_amount_usd) 冒充净营收；严禁漏掉 order_status = 'completed' 过滤。"
+
+  cancel_rate:
+    display_name: "订单取消率"
+    formula: "ROUND(100.0 * COUNT(*) FILTER (WHERE order_status = 'cancelled') / NULLIF(COUNT(*), 0), 2)"
+    scope: "单位为百分比（%），分母为总订单行数，必须使用 NULLIF 防止除零报错。"
+
+  refund_rate:
+    display_name: "退货退款率"
+    formula: "ROUND(100.0 * COUNT(*) FILTER (WHERE order_status = 'refunded') / NULLIF(COUNT(*) FILTER (WHERE order_status IN ('completed', 'refunded')), 0), 2)"
+    scope: "单位为百分比（%），分母为有效发货订单（completed + refunded），不含未发货取消单。"
+
+  cancel_and_refund_rate:
+    display_name: "异常退取消总占比"
+    formula: "ROUND(100.0 * COUNT(*) FILTER (WHERE order_status IN ('cancelled', 'refunded')) / NULLIF(COUNT(*), 0), 2)"
+    scope: "用于快速评估品控或履约引发的异常单激增。"
+
+  acos:
+    display_name: "广告销售成本比（ACOS）"
+    formula: "ROUND(100.0 * SUM(ad_spend_usd) / NULLIF(SUM(ad_sales_usd), 0), 2)"
+    scope: "单位为百分比（%），越低说明广告投放效率越高，超过 35% 通常视为广告效率恶化。"
+
+  tacos:
+    display_name: "总广告销售成本比（TACOS）"
+    formula: "ROUND(100.0 * SUM(ad_spend_usd) / NULLIF(总净营收, 0), 2)"
+    scope: "衡量广告花费占全渠道净营收的比例，需分别按 (biz_date, sku_id) 聚合订单与广告表后再 JOIN，严禁直接多对多 JOIN 导致金额膨胀！"
+    pitfall: "fact_orders 是订单明细粒度，fact_ads_daily 是天/站点/SKU 汇总粒度，直接 JOIN 会造成 ad_spend_usd 重复累加翻倍，必须先 CTE 分别聚合再关联！"
+
+  aov:
+    display_name: "有效客单价（AOV）"
+    formula: "ROUND(SUM(gross_amount_usd - discount_usd) / NULLIF(COUNT(*), 0), 2) （仅限 order_status = 'completed'）"
+    scope: "平均每笔已完成有效订单的净成交额（美元）。"
+
+allowed_tables:
+  - "ecom_bi.dim_sku"
+  - "ecom_bi.dim_calendar"
+  - "ecom_bi.fact_orders"
+  - "ecom_bi.fact_ads_daily"
+  - "dim_sku"
+  - "dim_calendar"
+  - "fact_orders"
+  - "fact_ads_daily"

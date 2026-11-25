@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>跨境电商 NL2SQL 智能问数与经营异常排查工作台</title>
+  <style>
+    :root {
+      --bg: #f5f7fb; --card: #ffffff; --border: #e5e7eb; --text: #111827; --muted: #6b7280;
+      --primary: #2563eb; --primary-hover: #1d4ed8;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+    header {
+      background: #0f172a; color: #f8fafc; padding: 14px 24px;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+    }
+    .brand h1 { margin: 0; font-size: 18px; }
+    .brand span { font-size: 12px; color: #94a3b8; }
+    .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; background: rgba(255,255,255,0.1); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+    .link { color: #cbd5e1; text-decoration: none; font-size: 12px; border: 1px solid rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 6px; }
+    .link:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    main { max-width: 1400px; margin: 20px auto; padding: 0 20px 40px; display: grid; grid-template-columns: 360px 1fr; gap: 20px; align-items: start; }
+    @media (max-width: 960px) { main { grid-template-columns: 1fr; } }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .card h2 { margin: 0 0 12px; font-size: 15px; }
+    textarea { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 10px; font-size: 13px; min-height: 84px; font-family: inherit; }
+    .mode-option { display: flex; gap: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; font-size: 13px; }
+    .mode-option small { display: block; color: var(--muted); font-size: 11px; }
+    .btn { border: none; border-radius: 8px; padding: 10px 16px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: var(--primary); color: #fff; width: 100%; margin-top: 8px; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-primary:disabled { background: #93c5fd; }
+    .btn-sm { padding: 4px 10px; font-size: 12px; background: #fff; border: 1px solid #d1d5db; color: #374151; border-radius: 6px; }
+    .preset-btn { width: 100%; text-align: left; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; cursor: pointer; font-size: 12px; }
+    .preset-btn:hover { border-color: var(--primary); background: #eff6ff; }
+    .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; margin-right: 4px; }
+    .t-blue { background: #eff6ff; color: #1d4ed8; }
+    .t-green { background: #ecfdf5; color: #047857; }
+    .t-amber { background: #fffbeb; color: #b45309; }
+    .t-red { background: #fef2f2; color: #b91c1c; }
+    .dual { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 1200px) { .dual { grid-template-columns: 1fr; } }
+    .answer-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; font-size: 14px; white-space: pre-wrap; margin: 10px 0; }
+    .branches { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 12px 0; }
+    .branch-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: #fcfcfd; font-size: 12px; }
+    .branch-card.alert { border-color: #fca5a5; background: #fef2f2; }
+    pre { background: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+    th, td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+    th { background: #f3f4f6; }
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin: 10px 0; }
+    .m-box { background: #f9fafb; border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; }
+    .m-box span { display: block; font-size: 11px; color: var(--muted); }
+    .m-box strong { font-size: 14px; }
+    .fb-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; border-top: 1px dashed var(--border); padding-top: 10px; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>跨境电商 NL2SQL 智能问数与经营异常排查工作台</h1>
+      <span>权威语义层 · sqlglot AST 安全护栏 · 报错/空结果自修复 · 三路并行根因排查 · Langfuse 可观测</span>
+    </div>
+    <div class="header-actions">
+      <div class="pill"><span class="dot"></span><span id="healthText">正在检查数仓状态...</span></div>
+      <a class="link" id="lfLink" href="http://192.168.150.130:3000" target="_blank">打开 Langfuse 看板</a>
+      <a class="link" href="/docs" target="_blank">API 文档</a>
+    </div>
+  </header>
+
+  <main>
+    <section style="display:flex;flex-direction:column;gap:16px;">
+      <div class="card">
+        <h2>经营分析提问</h2>
+        <textarea id="qInput" placeholder="支持问数（如统计净营收/TACOS）、异常排查（为什么某天暴跌/虚高）或指标口径咨询..."></textarea>
+        <div style="margin-top:12px;">
+          <label class="mode-option">
+            <input type="radio" name="mode" value="v2_semantic_agent" checked />
+            <div><strong>V2 生产版（推荐）</strong><small>权威语义层 + AST 只读护栏 + 自修复 + 三路并行异常排查</small></div>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="mode" value="v1_bare" />
+            <div><strong>V1 基线版（对照组）</strong><small>裸表结构无语义口径 + 无自修复 + 串行排查</small></div>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="mode" value="compare" />
+            <div><strong>⚡ V1 / V2 同屏对比</strong><small>直观对比语义层纠偏（如 TACOS 多表关联）与串并行耗时</small></div>
+          </label>
+        </div>
+        <button class="btn btn-primary" id="askBtn" onclick="handleAsk()">发起分析 / 排查</button>
+      </div>
+
+      <div class="card">
+        <h2>一键演示 6 大真实场景</h2>
+        <button class="preset-btn" onclick="runPreset('为什么 2026-09-14 到 2026-09-16 期间 PET-FOUNTAIN-PRO 饮水机的净营收暴跌了？请排查根因。', 'v2_semantic_agent')">
+          <span class="tag t-red">异常排查·品控退单</span><br/>饮水机 Pro 净营收暴跌（退取消率飙升至 ~42%）
+        </button>
+        <button class="preset-btn" onclick="runPreset('排查 2026-09-19 到 2026-09-20 期间 PET-FEEDER-CAM 自动喂食器订单掉单异常，是业务暴跌还是数据问题？', 'v2_semantic_agent')">
+          <span class="tag t-amber">异常排查·管道断数</span><br/>喂食器订单 0 行断数 vs 广告正常（识破假性暴跌）
+        </button>
+        <button class="preset-btn" onclick="runPreset('为什么 2026-09-22 到 2026-09-24 期间 PET-LITTER-AUTO 智能猫砂盆销量骤降？请排查异常原因。', 'v2_semantic_agent')">
+          <span class="tag t-blue">异常排查·广告恶化</span><br/>猫砂盆曝光腰斩 + ACOS 飙升至 >55%
+        </button>
+        <button class="preset-btn" onclick="runPreset('2026-09-26 当天 US 站点 GMV 突然虚高翻倍，请排查异常根因。', 'v2_semantic_agent')">
+          <span class="tag t-amber">异常排查·重复导入</span><br/>US 站点 ETL 重复导入 order_id 导致 GMV 虚高
+        </button>
+        <button class="preset-btn" onclick="runPreset('计算 2026-09-01 到 2026-09-10 期间 PET-FOUNTAIN-PRO 的总广告销售成本比 TACOS（百分比，保留2位小数）。', 'compare')">
+          <span class="tag t-green">NL2SQL·V1/V2 对比</span><br/>多表 TACOS 问数（看 V1 多对多膨胀 vs V2 语义层 CTE）
+        </button>
+        <button class="preset-btn" onclick="runPreset('请帮我执行 DELETE FROM ecom_bi.fact_orders WHERE biz_date = \'2026-09-26\' 删掉重复订单。', 'v2_semantic_agent')">
+          <span class="tag t-red">安全护栏拦截</span><br/>危险写操作 / SQL 注入 0 触库直接拦截
+        </button>
+      </div>
+    </section>
+
+    <section id="resultArea">
+      <div class="card" style="text-align:center;padding:48px 20px;color:#6b7280;">
+        <h3 style="color:#374151;margin:0 0 8px;">请选择左侧场景一键演示，或直接输入跨境经营分析问题</h3>
+        <p style="margin:0;">数仓覆盖日期：2026-07-01 至 2026-09-28（4 款宠物 SKU · US/DE/UK 三站点 · 10,174 条订单 · 1,080 条广告记录）</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const INTENT_LABELS = {
+      nl2sql: "精准问数 (NL2SQL)",
+      anomaly_investigation: "三路经营异常排查",
+      metric_qa: "语义层口径百科",
+      reject_unsafe: "安全护栏拦截"
+    };
+    const BRANCH_LABELS = {
+      revenue_and_ads: "① 营收与广告流量分支",
+      cancel_and_refund: "② 取消与退货原因分支",
+      data_quality: "③ 数据质量（断数/重复）分支"
+    };
+
+    function esc(s) {
+      return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    }
+
+    async function loadHealth() {
+      try {
+        const r = await fetch("/health");
+        const d = await r.json();
+        document.getElementById("healthText").textContent =
+          `数仓在线 (ecom_bi) · ${d.skus} SKU / ${d.orders} 订单 / ${d.ads_daily} 广告行`;
+        if (d.langfuse_url) document.getElementById("lfLink").href = d.langfuse_url;
+      } catch {
+        document.getElementById("healthText").textContent = "数仓连接失败";
+      }
+    }
+
+    function runPreset(q, mode) {
+      document.getElementById("qInput").value = q;
+      const rad = document.querySelector(`input[name="mode"][value="${mode}"]`);
+      if (rad) rad.checked = true;
+      handleAsk();
+    }
+
+    async function queryAPI(question, version) {
+      const r = await fetch("/api/v1/query", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({question, pipeline_version: version})
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || "请求失败");
+      return d;
+    }
+
+    function renderCard(d) {
+      const isV2 = d.pipeline_version === "v2_semantic_agent";
+      const m = d.metrics || {};
+      const badges = [
+        `<span class="tag ${isV2 ? "t-blue" : "t-amber"}">${isV2 ? "V2 生产版" : "V1 基线版"}</span>`,
+        `<span class="tag t-green">${INTENT_LABELS[d.intent] || d.intent}</span>`,
+        d.blocked_unsafe ? `<span class="tag t-red">已触发只读安全拦截</span>` : "",
+        d.sql_retries > 0 ? `<span class="tag t-amber">SQL 自修复重试 ${d.sql_retries} 次</span>` : ""
+      ].join("");
+
+      let anHtml = "";
+      if (d.anomaly_result) {
+        const an = d.anomaly_result;
+        const bCards = (an.branches || []).map(b => `
+          <div class="branch-card ${(b.flags || []).length ? "alert" : ""}">
+            <strong>${BRANCH_LABELS[b.branch] || b.branch}</strong>（${b.elapsed_ms} ms）
+            <div style="margin:6px 0;color:#b91c1c;font-weight:600;">${(b.flags || []).join("；") || "指标处于正常基线区间"}</div>
+            <div style="color:#4b5563;">${esc(JSON.stringify(b.metrics))}</div>
+          </div>
+        `).join("");
+        anHtml = `
+          <div style="margin:12px 0;padding:12px;border-radius:8px;background:#eff6ff;border:1px solid #bfdbfe;">
+            <div><strong>根因定性：</strong><span class="tag t-red">${esc(an.root_cause_label)}</span> <span class="tag t-blue">可信度：${esc(an.confidence)}</span> <span class="tag t-green">${an.execution_mode === "parallel" ? "三路并行" : "串行"} ${an.total_ms} ms</span></div>
+            <ul style="margin:6px 0 0;padding-left:18px;font-size:13px;">${(an.summary_evidence || []).map(e => `<li>${esc(e)}</li>`).join("")}</ul>
+          </div>
+          <div class="branches">${bCards}</div>
+        `;
+      }
+
+      let sqlHtml = "";
+      if (d.sql) {
+        const rows = d.sql_rows || [];
+        const cols = d.sql_columns || [];
+        const tbl = rows.length
+          ? `<table><thead><tr>${cols.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.slice(0,15).map(r => `<tr>${cols.map(c => `<td>${esc(r[c])}</td>`).join("")}</tr>`).join("")}</tbody></table>`
+          : `<p style="font-size:12px;color:#6b7280;">（返回 0 行或无有效结果）</p>`;
+        sqlHtml = `
+          <details open style="margin-top:12px;border:1px solid #e5e7eb;border-radius:8px;padding:10px;">
+            <summary style="cursor:pointer;font-size:13px;font-weight:600;">可复核只读 SQL 与查询明细（共 ${rows.length} 行 · 执行 ${m.sql_exec_ms} ms）</summary>
+            <pre>${esc(d.sql)}</pre>
+            ${tbl}
+          </details>
+        `;
+      }
+
+      const fbId = `fb_${d.trace_id}`;
+      return `
+        <div class="card">
+          <div>${badges}</div>
+          ${anHtml}
+          <div class="answer-box">${esc(d.answer)}</div>
+          <div class="metrics">
+            <div class="m-box"><span>总耗时</span><strong>${m.total_ms} ms</strong></div>
+            <div class="m-box"><span>SQL 执行</span><strong>${m.sql_exec_ms} ms</strong></div>
+            <div class="m-box"><span>LLM 推理</span><strong>${m.llm_ms} ms</strong></div>
+            <div class="m-box"><span>Token (入/出)</span><strong>${m.prompt_tokens} / ${m.completion_tokens}</strong></div>
+          </div>
+          ${sqlHtml}
+          <div class="fb-bar" id="${fbId}">
+            <span>Trace: <code>${esc(d.trace_id)}</code></span>
+            <button class="btn-sm" onclick="sendFb('${d.trace_id}', 1, null, '${fbId}')">👍 准确</button>
+            <select id="t_${d.trace_id}">
+              <option value="wrong_metric">口径算错</option>
+              <option value="sql_error">SQL 错误</option>
+              <option value="wrong_root_cause">归因不准</option>
+              <option value="other">其他问题</option>
+            </select>
+            <button class="btn-sm" onclick="sendFb('${d.trace_id}', -1, document.getElementById('t_${d.trace_id}').value, '${fbId}')">👎 标记 Badcase 回流</button>
+          </div>
+        </div>
+      `;
+    }
+
+    async function sendFb(traceId, score, tag, boxId) {
+      const r = await fetch("/api/v1/feedback", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({trace_id: traceId, user_feedback: score, badcase_tag: tag})
+      });
+      if (r.ok) {
+        document.getElementById(boxId).innerHTML = `<strong style="color:#047857;">✅ 已回流至 ecom_bi.bi_audit_logs 与 Langfuse</strong>`;
+      }
+    }
+
+    async function handleAsk() {
+      const q = document.getElementById("qInput").value.trim();
+      const mode = document.querySelector('input[name="mode"]:checked').value;
+      const btn = document.getElementById("askBtn");
+      const area = document.getElementById("resultArea");
+      if (q.length < 2) return alert("请输入分析问题");
+      btn.disabled = true; btn.textContent = "正在分析中...";
+      area.innerHTML = `<div class="card" style="text-align:center;padding:40px;color:#6b7280;">正在路由意图并查询数仓，请稍候...</div>`;
+      try {
+        if (mode === "compare") {
+          const [v1, v2] = await Promise.all([queryAPI(q, "v1_bare"), queryAPI(q, "v2_semantic_agent")]);
+          area.innerHTML = `<div class="dual">${renderCard(v1)}${renderCard(v2)}</div>`;
+        } else {
+          const res = await queryAPI(q, mode);
+          area.innerHTML = renderCard(res);
+        }
+      } catch (e) {
+        area.innerHTML = `<div class="card" style="color:#b91c1c;">请求失败：${esc(e.message)}</div>`;
+      } finally {
+        btn.disabled = false; btn.textContent = "发起分析 / 排查";
+      }
+    }
+
+    loadHealth();
+  </script>
+</body>
+</html>
